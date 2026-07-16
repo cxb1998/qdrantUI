@@ -1,0 +1,300 @@
+@import 'tailwindcss';
+
+@theme {
+  /* 冷色仪表台基调 */
+  --color-ink: #12141a;
+  --color-ink-soft: #2a2f3a;
+  --color-paper: #f4f5f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #fafbfd;
+  --color-line: #e5e8ef;
+  --color-line-strong: #d5dae4;
+  --color-muted: #7a828f;
+  --color-muted-soft: #9aa1ad;
+
+  /* 主操作色 */
+  --color-indigo: #4b48d6;
+  --color-indigo-soft: #ecebfb;
+  --color-indigo-deep: #3b38b8;
+
+  /* 招牌：相似度热力刻度（近=暖金 → 远=冷蓝） */
+  --color-near: #f0a63a;
+  --color-mid: #b58a6e;
+  --color-far: #3e63dd;
+
+  /* 状态 */
+  --color-ok: #2fa36b;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #e0a93b;
+  --color-warn-soft: #faf0da;
+  --color-danger: #dc5a54;
+  --color-danger-soft: #fbe9e8;
+
+  /* 资源占用 · 构成分块（同系靛蓝阶梯，避免冷暖撞色） */
+  --color-seg-vector: #4543c9;
+  --color-seg-scalar: #6e7fd6;
+  --color-seg-id: #adb6d4;
+  --color-seg-ram: #4543c9;
+  --color-seg-cache: #8fa3d8;
+
+  /* 字体 */
+  --font-display: 'Space Grotesk', 'IBM Plex Sans SC', system-ui, sans-serif;
+  --font-title: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans SC', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --radius-card: 14px;
+
+  /* 侧栏宽度：Toast 等需相对右侧主视图居中时使用 */
+  --sidebar-width: 236px;
+
+  --animate-overlay-in: overlay-in 160ms ease-out both;
+  --animate-overlay-out: overlay-out 120ms ease-in both;
+  --animate-dialog-in: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dialog-out: dialog-out 120ms ease-in both;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 招牌背景：极淡点阵坐标网格，暗示高维空间 */
+  .dot-grid {
+    background-image: radial-gradient(var(--color-line-strong) 1px, transparent 1px);
+    background-size: 22px 22px;
+    background-position: -1px -1px;
+  }
+
+  ::selection {
+    background: var(--color-indigo-soft);
+  }
+
+  /* 细滚动条 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 999px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-indigo);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href],
+  label:has(input[type='checkbox']),
+  label:has(select),
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
+
+@keyframes opt-status-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-warn) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-warn) 22%, transparent);
+  }
+}
+
+.opt-status-trigger {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  animation: opt-status-glow 2.2s ease-in-out infinite;
+}
+
+.opt-status-trigger:hover {
+  transform: scale(1.06);
+}
+
+.opt-status-trigger:active {
+  transform: scale(0.98);
+}
+
+.opt-status-trigger:focus-visible {
+  outline: 2px solid var(--color-warn);
+  outline-offset: 3px;
+}
+
+@keyframes opt-segment-pulse {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.opt-segment-pulse {
+  animation: opt-segment-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes opt-beacon-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-warn) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-warn) 28%, transparent);
+  }
+}
+
+.opt-beacon-trigger {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.opt-beacon-trigger:hover {
+  transform: scale(1.06);
+}
+
+.opt-beacon-trigger:focus-visible {
+  outline: 2px solid var(--color-indigo);
+  outline-offset: 3px;
+}
+
+.opt-beacon-pulse {
+  animation: opt-beacon-pulse 2s ease-in-out infinite;
+}
+
+.graph-panel-separator {
+  width: 10px;
+  flex: 0 0 10px;
+  background: color-mix(in srgb, var(--color-indigo) 5%, var(--color-paper));
+  transition: background-color 0.15s ease;
+}
+
+.graph-panel-separator-grip {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted-soft);
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.graph-panel-separator[data-separator]:hover,
+.graph-panel-separator[data-separator][data-resize-handle-active] {
+  background: color-mix(in srgb, var(--color-indigo) 12%, var(--color-paper));
+}
+
+.graph-panel-separator[data-separator]:hover .graph-panel-separator-grip,
+.graph-panel-separator[data-separator][data-resize-handle-active] .graph-panel-separator-grip {
+  color: var(--color-indigo);
+}
+
+/* 集合 Tab 栏：窄屏可横滑，但不显示那条短滚动条 */
+.tab-nav {
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.tab-nav::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-title {
+    font-family: var(--font-title);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
