@@ -6,7 +6,6 @@ import {
   useUploadSnapshot,
 } from '../../hooks/useQdrant'
 import { qdrant } from '../../lib/qdrant'
-import { loadConnection } from '../../lib/config'
 import {
   loadSnapshotNotes,
   removeSnapshotNote,
@@ -17,6 +16,7 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Field, Input } from '../../components/ui/fields'
 import { useToast } from '../../components/ui/Toast'
+import { usePermissions } from '../../hooks/useAuth'
 import { formatBytes, formatTime } from '../../lib/format'
 import {
   IconCamera,
@@ -30,6 +30,7 @@ import { CreateBackupDialog } from '../dialogs/CreateBackupDialog'
 
 export function SnapshotsTab({ name }: { name: string }) {
   const toast = useToast()
+  const { canAdmin } = usePermissions()
   const { data, isLoading, error, refetch } = useSnapshots(name)
   const del = useDeleteSnapshot(name)
   const upload = useUploadSnapshot()
@@ -62,9 +63,8 @@ export function SnapshotsTab({ name }: { name: string }) {
   async function download(snapshot: string) {
     setDownloading(snapshot)
     try {
-      const { apiKey } = loadConnection()
       const res = await fetch(qdrant.snapshotDownloadUrl(name, snapshot), {
-        headers: apiKey ? { 'api-key': apiKey } : undefined,
+        credentials: 'include',
       })
       if (!res.ok) throw new Error(`下载失败（${res.status}）`)
       const blob = await res.blob()
@@ -119,18 +119,20 @@ export function SnapshotsTab({ name }: { name: string }) {
               为集合创建备份，可下载保存，或从备份文件恢复数据。
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              icon={<IconUpload />}
-              onClick={() => inputRef.current?.click()}
-              loading={upload.isPending}
-            >
-              上传恢复
-            </Button>
-            <Button variant="primary" icon={<IconCamera />} onClick={() => setCreateOpen(true)}>
-              创建备份
-            </Button>
-          </div>
+          {canAdmin && (
+            <div className="flex items-center gap-2">
+              <Button
+                icon={<IconUpload />}
+                onClick={() => inputRef.current?.click()}
+                loading={upload.isPending}
+              >
+                上传恢复
+              </Button>
+              <Button variant="primary" icon={<IconCamera />} onClick={() => setCreateOpen(true)}>
+                创建备份
+              </Button>
+            </div>
+          )}
         </div>
         <input
           ref={inputRef}
@@ -154,9 +156,11 @@ export function SnapshotsTab({ name }: { name: string }) {
           title="还没有备份"
           desc="创建备份以保存当前集合，或上传 .snapshot 备份文件进行恢复。"
           action={
-            <Button variant="primary" icon={<IconCamera />} onClick={() => setCreateOpen(true)}>
-              创建备份
-            </Button>
+            canAdmin ? (
+              <Button variant="primary" icon={<IconCamera />} onClick={() => setCreateOpen(true)}>
+                创建备份
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -182,6 +186,7 @@ export function SnapshotsTab({ name }: { name: string }) {
                   downloading={downloading === s.name}
                   onDownload={() => download(s.name)}
                   onDelete={() => setDeleteTarget(s.name)}
+                  canAdmin={canAdmin}
                 />
               ))}
             </tbody>
@@ -226,6 +231,7 @@ function SnapshotRow({
   downloading,
   onDownload,
   onDelete,
+  canAdmin,
 }: {
   snapshot: SnapshotDescription
   note: string
@@ -235,6 +241,7 @@ function SnapshotRow({
   downloading: boolean
   onDownload: () => void
   onDelete: () => void
+  canAdmin: boolean
 }) {
   const [draft, setDraft] = useState(note)
 
@@ -309,7 +316,9 @@ function SnapshotRow({
             loading={downloading}
             onClick={onDownload}
           />
-          <ActionBtn title="删除" danger icon={<IconTrash />} onClick={onDelete} />
+          {canAdmin && (
+            <ActionBtn title="删除" danger icon={<IconTrash />} onClick={onDelete} />
+          )}
         </div>
       </td>
     </tr>

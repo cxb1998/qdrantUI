@@ -7,6 +7,7 @@ import { PointPayload } from './PointPayload'
 import { PointVectors } from './PointVectors'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
+import { usePermissions } from '../../hooks/useAuth'
 import { IconTrash } from '../ui/icons'
 
 export function PointCard({
@@ -27,6 +28,7 @@ export function PointCard({
   graphFilters?: PayloadFilterCondition[]
 }) {
   const toast = useToast()
+  const { canWrite } = usePermissions()
   const [point, setPoint] = useState(initialPoint)
   const [removed, setRemoved] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -82,15 +84,17 @@ export function PointCard({
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setDeleteOpen(true)}
-            title="删除点"
-            aria-label="删除点"
-            className="grid size-8 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
-          >
-            <IconTrash className="text-[17px]" />
-          </button>
+          {canWrite && (
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              title="删除点"
+              aria-label="删除点"
+              className="grid size-8 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+            >
+              <IconTrash className="text-[17px]" />
+            </button>
+          )}
         </header>
 
         {hasPayload && (
@@ -99,6 +103,7 @@ export function PointCard({
               point={point}
               collectionName={collectionName}
               showImage
+              buttonsToShow={canWrite ? ['copy', 'edit'] : ['copy']}
               onPayloadEdit={(payload) => setPoint((p) => ({ ...p, payload }))}
             />
           </div>

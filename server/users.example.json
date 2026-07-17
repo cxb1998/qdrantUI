@@ -1,0 +1,12 @@
+[
+  {
+    "username": "admin",
+    "passwordHash": "$2a$10$PLACEHOLDER_RUN_npm_run_init_users",
+    "role": "admin"
+  },
+  {
+    "username": "viewer",
+    "passwordHash": "$2a$10$PLACEHOLDER_RUN_npm_run_init_users",
+    "role": "viewer"
+  }
+]

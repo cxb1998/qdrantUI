@@ -8,7 +8,9 @@ import {
   IconLock,
 } from '../ui/icons'
 import { useConnection } from '../../hooks/useConnection'
+import { useAuthOptional, usePermissions } from '../../hooks/useAuth'
 import { SettingsDialog } from './SettingsDialog'
+import { QDRANT_API_BASE } from '../../lib/config'
 
 const CONN_LABEL = {
   checking: { text: '连接中…', color: 'var(--color-warn)' },
@@ -24,14 +26,16 @@ const EMBED_LABEL = {
 }
 
 export function Sidebar() {
-  const { conn, state, embedState } = useConnection()
+  const auth = useAuthOptional()
+  const { role, username } = usePermissions()
+  const { state, embedState } = useConnection()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const c = CONN_LABEL[state]
   const e = EMBED_LABEL[embedState]
-  const qdrantHost = conn.url.replace(/^https?:\/\//, '')
-  const embedHost = conn.embed.useMock
-    ? '浏览器内伪向量'
-    : conn.embed.url.replace(/^https?:\/\//, '') || '未配置'
+  const embedHost =
+    embedState === 'mock' ? '浏览器内伪向量' : '服务端代理'
+
+  const roleLabel = role === 'admin' ? '管理员' : '只读'
 
   return (
     <aside className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r bg-surface">
@@ -57,7 +61,13 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-2 border-t px-3 py-3">
-        <ConnRow label="Qdrant" status={c.text} color={c.color} host={qdrantHost} ping={state === 'online'} />
+        {username && (
+          <div className="rounded-lg bg-surface-2 px-2.5 py-2">
+            <div className="truncate text-[12.5px] font-medium text-ink">{username}</div>
+            <div className="mt-0.5 text-[11px] text-muted">{roleLabel}</div>
+          </div>
+        )}
+        <ConnRow label="Qdrant" status={c.text} color={c.color} host={QDRANT_API_BASE} ping={state === 'online'} />
         <ConnRow
           label="Embedding"
           status={e.text}
@@ -70,7 +80,13 @@ export function Sidebar() {
           className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-muted transition hover:bg-[var(--color-line)]/60 hover:text-ink"
         >
           <IconSettings className="text-[17px]" />
-          连接设置
+          设置
+        </button>
+        <button
+          onClick={() => void auth?.logout()}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-muted transition hover:bg-[var(--color-line)]/60 hover:text-ink"
+        >
+          退出登录
         </button>
       </div>
 

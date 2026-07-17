@@ -1,4 +1,5 @@
-import { loadEmbedSettings } from './config'
+import { EMBED_API_BASE, loadEmbedSettings } from './config'
+import { notifyAuthRequired } from './auth'
 
 export class EmbedError extends Error {
   status: number
@@ -95,28 +96,22 @@ export async function embedImage(
     return { vector, dimension: dim, model: 'mock-local', mocked: true, payload }
   }
 
-  if (!settings.url.trim()) {
-    throw new EmbedError('未配置向量服务地址，请在连接设置中填写或开启 Mock', 0)
-  }
-
-  const base = settings.url.trim().replace(/\/+$/, '')
   const form = new FormData()
   form.append('file', file)
 
-  const headers: Record<string, string> = {}
-  if (settings.apiKey) headers['api-key'] = settings.apiKey
-
   let res: Response
   try {
-    res = await fetch(`${base}/embed/image`, {
+    res = await fetch(`${EMBED_API_BASE}/embed/image`, {
       method: 'POST',
-      headers,
       body: form,
       signal,
+      credentials: 'include',
     })
   } catch {
-    throw new EmbedError('无法连接向量服务，请检查地址与 CORS', 0)
+    throw new EmbedError('无法连接向量服务，请检查 BFF 与网络', 0)
   }
+
+  if (res.status === 401) notifyAuthRequired()
 
   const text = await res.text()
   let json: unknown
@@ -144,18 +139,16 @@ export async function embedHealth(signal?: AbortSignal): Promise<boolean> {
   const settings = loadEmbedSettings()
   if (settings.useMock) return true
 
-  const base = settings.url.trim().replace(/\/+$/, '')
-  if (!base) throw new EmbedError('未填写向量服务地址', 0)
-
-  const headers: Record<string, string> = {}
-  if (settings.apiKey) headers['api-key'] = settings.apiKey
+  const base = EMBED_API_BASE
+  if (!base) throw new EmbedError('未配置向量服务', 0)
 
   let res: Response
   try {
-    res = await fetch(`${base}/health`, { headers, signal })
+    res = await fetch(`${base}/health`, { signal, credentials: 'include' })
   } catch {
     throw new EmbedError('无法连接向量服务', 0)
   }
+  if (res.status === 401) notifyAuthRequired()
   if (!res.ok) throw new EmbedError(`探活失败（${res.status}）`, res.status)
   return true
 }

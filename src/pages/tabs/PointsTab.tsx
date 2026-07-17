@@ -14,6 +14,7 @@ import {
   type PointsSort,
 } from '../../lib/pointsFilter'
 import { Button } from '../../components/ui/Button'
+import { usePermissions } from '../../hooks/useAuth'
 import { Card, Loading, ErrorState, EmptyState, Tag } from '../../components/ui/primitives'
 import { PointCard } from '../../components/points/PointCard'
 import { PayloadFilterField } from '../../components/points/PayloadFilterField'
@@ -52,6 +53,7 @@ interface ImageSearchState {
 
 export function PointsTab({ name, info }: { name: string; info: CollectionInfo }) {
   const navigate = useNavigate()
+  const { canWrite } = usePermissions()
   const [filters, setFilters] = useState<PayloadFilterCondition[]>([])
   const [similarIds, setSimilarIds] = useState<(string | number)[]>([])
   const [usingVector, setUsingVector] = useState<string | null>(null)
@@ -257,14 +259,16 @@ export function PointsTab({ name, info }: { name: string; info: CollectionInfo }
   return (
     <div className="space-y-4">
       <Card padded className="space-y-3">
-        <button
-          type="button"
-          onClick={() => setIngestOpen(true)}
-          className="dot-grid group flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-3.5 transition hover:border-[var(--color-indigo)] hover:bg-[var(--color-indigo-soft)]/40"
-        >
-          <IconUpload className="text-xl text-muted transition group-hover:text-[var(--color-indigo)]" />
-          <span className="text-[14px] font-medium text-ink">数据入库</span>
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => setIngestOpen(true)}
+            className="dot-grid group flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-3.5 transition hover:border-[var(--color-indigo)] hover:bg-[var(--color-indigo-soft)]/40"
+          >
+            <IconUpload className="text-xl text-muted transition group-hover:text-[var(--color-indigo)]" />
+            <span className="text-[14px] font-medium text-ink">数据入库</span>
+          </button>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <PayloadFilterField
@@ -301,7 +305,7 @@ export function PointsTab({ name, info }: { name: string; info: CollectionInfo }
               以图搜图
             </Button>
           )}
-          {batchScopeReady && (
+          {batchScopeReady && canWrite && (
             <Button variant="secondary" size="md" onClick={() => setBatchOpen(true)}>
               批量修改
             </Button>

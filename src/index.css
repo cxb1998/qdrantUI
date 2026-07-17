@@ -298,3 +298,48 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 登录页 */
+.login-scene {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--color-indigo) 14%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 85%, color-mix(in srgb, var(--color-far) 12%, transparent), transparent 50%),
+    linear-gradient(165deg, #f7f8fc 0%, #eef1f8 45%, #f4f5f8 100%);
+}
+
+.login-aurora {
+  background:
+    radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--color-near) 18%, transparent), transparent 42%),
+    radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--color-indigo) 16%, transparent), transparent 45%);
+  animation: login-aurora-shift 18s ease-in-out infinite alternate;
+}
+
+.login-grid {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--color-indigo) 22%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, #000 20%, transparent 100%);
+}
+
+.login-card {
+  animation: login-card-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes login-aurora-shift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1%, 0) scale(1.04);
+  }
+}
+
+@keyframes login-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

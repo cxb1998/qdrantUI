@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { CollectionInfo, CollectionStatus, VectorParams } from '../../lib/qdrant'
 import { useUpdateCollection, useOptimizations, useTriggerOptimizers } from '../../hooks/useQdrant'
 import { useToast } from '../../components/ui/Toast'
+import { usePermissions } from '../../hooks/useAuth'
 import { Card, SectionTitle, Stat, Loading } from '../../components/ui/primitives'
 import { Button } from '../../components/ui/Button'
 import { Toggle } from '../../components/ui/fields'
@@ -18,6 +19,7 @@ interface VectorOnDiskEntry {
 
 export function OptimizationsTab({ name, info }: { name: string; info: CollectionInfo }) {
   const toast = useToast()
+  const { canAdmin } = usePermissions()
   const update = useUpdateCollection(name)
   const trigger = useTriggerOptimizers(name)
   const optimizationsQuery = useOptimizations(name, info)
@@ -101,7 +103,7 @@ export function OptimizationsTab({ name, info }: { name: string; info: Collectio
               <OptimizerStatusBeacon
                 status={info.status}
                 optimizerOk={optimizerOk}
-                needsManualTrigger={needsManualTrigger}
+                needsManualTrigger={needsManualTrigger && canAdmin}
                 loading={trigger.isPending}
                 onTrigger={handleTriggerOptimizers}
               />
@@ -129,7 +131,7 @@ export function OptimizationsTab({ name, info }: { name: string; info: Collectio
 
       <section className="space-y-4">
         <GroupHeader title="集合配置" desc="索引与磁盘加载策略，保存后可能触发后台优化" />
-        <PayloadIndexSection name={name} info={info} />
+        <PayloadIndexSection name={name} info={info} canAdmin={canAdmin} />
 
         <Card padded>
           <SectionTitle
@@ -142,32 +144,34 @@ export function OptimizationsTab({ name, info }: { name: string; info: Collectio
                 <Toggle
                   key={entry.name || '__default__'}
                   checked={entry.onDisk}
-                  onChange={(v) => setVector(entry.name, v)}
+                  onChange={(v) => canAdmin && setVector(entry.name, v)}
                   label={entry.label}
                 />
               ))}
               <Toggle
                 checked={hnswOnDisk}
-                onChange={setHnswOnDisk}
+                onChange={(v) => canAdmin && setHnswOnDisk(v)}
                 label="HNSW 索引加载于磁盘"
               />
               <Toggle
                 checked={payloadOnDisk}
-                onChange={setPayloadOnDisk}
+                onChange={(v) => canAdmin && setPayloadOnDisk(v)}
                 label="标量加载于磁盘"
               />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {dirty && <span className="text-[12.5px] text-muted">有未保存的改动</span>}
-              <Button
-                variant="primary"
-                onClick={save}
-                loading={update.isPending}
-                disabled={!dirty}
-              >
-                保存配置
-              </Button>
-            </div>
+            {canAdmin && (
+              <div className="flex shrink-0 items-center gap-2">
+                {dirty && <span className="text-[12.5px] text-muted">有未保存的改动</span>}
+                <Button
+                  variant="primary"
+                  onClick={save}
+                  loading={update.isPending}
+                  disabled={!dirty}
+                >
+                  保存配置
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 

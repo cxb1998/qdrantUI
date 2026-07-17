@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
-import { Field, Input, Toggle } from '../ui/fields'
-import { loadConnection, saveConnection, type EmbedSettings } from '../../lib/config'
+import { Field, Toggle } from '../ui/fields'
+import { loadConnection, saveEmbedSettings, type EmbedSettings } from '../../lib/config'
 import { qdrant } from '../../lib/qdrant'
 import { embedHealth } from '../../lib/embed'
 import { useToast } from '../ui/Toast'
+import { usePermissions } from '../../hooks/useAuth'
 import { IconCheck, IconAlert, IconSpinner } from '../ui/icons'
 
 type TestState = 'idle' | 'testing' | 'ok' | 'fail'
@@ -18,13 +19,8 @@ export function SettingsDialog({
   onOpenChange: (v: boolean) => void
 }) {
   const toast = useToast()
-  const [url, setUrl] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [embed, setEmbed] = useState<EmbedSettings>({
-    url: 'http://localhost:8765',
-    apiKey: '',
-    useMock: true,
-  })
+  const { role, username } = usePermissions()
+  const [embed, setEmbed] = useState<EmbedSettings>({ useMock: true })
   const [qdrantTest, setQdrantTest] = useState<TestState>('idle')
   const [qdrantTestMsg, setQdrantTestMsg] = useState('')
   const [embedTest, setEmbedTest] = useState<TestState>('idle')
@@ -32,10 +28,7 @@ export function SettingsDialog({
 
   useEffect(() => {
     if (open) {
-      const c = loadConnection()
-      setUrl(c.url)
-      setApiKey(c.apiKey)
-      setEmbed(c.embed)
+      setEmbed(loadConnection().embed)
       setQdrantTest('idle')
       setQdrantTestMsg('')
       setEmbedTest('idle')
@@ -43,13 +36,7 @@ export function SettingsDialog({
     }
   }, [open])
 
-  function draftConnection() {
-    return { url, apiKey, embed }
-  }
-
   async function runQdrantTest() {
-    const prev = loadConnection()
-    saveConnection(draftConnection())
     setQdrantTest('testing')
     try {
       await qdrant.health()
@@ -58,13 +45,12 @@ export function SettingsDialog({
     } catch (e) {
       setQdrantTest('fail')
       setQdrantTestMsg(e instanceof Error ? e.message : '连接失败')
-      saveConnection(prev)
     }
   }
 
   async function runEmbedTest() {
-    const prev = loadConnection()
-    saveConnection(draftConnection())
+    const prev = loadConnection().embed
+    saveEmbedSettings(embed)
     setEmbedTest('testing')
     try {
       await embedHealth()
@@ -73,23 +59,25 @@ export function SettingsDialog({
     } catch (e) {
       setEmbedTest('fail')
       setEmbedTestMsg(e instanceof Error ? e.message : '连接失败')
-      saveConnection(prev)
+      saveEmbedSettings(prev)
     }
   }
 
   function save() {
-    saveConnection(draftConnection())
-    toast.success('连接设置已保存')
+    saveEmbedSettings(embed)
+    toast.success('设置已保存')
     onOpenChange(false)
   }
+
+  const roleLabel = role === 'admin' ? '管理员' : role === 'viewer' ? '只读' : '—'
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="连接设置"
-      description="Qdrant 与向量服务（如 DINOv3）可分别配置。"
-      width={520}
+      title="设置"
+      description="Qdrant 与向量服务由服务端代理，无需在浏览器填写密钥。"
+      width={480}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -102,57 +90,38 @@ export function SettingsDialog({
       }
     >
       <div className="space-y-5">
-        <div className="space-y-4">
+        <div className="rounded-lg border bg-surface-2 px-3 py-2.5 text-[13px]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted">当前用户</span>
+            <span className="font-medium text-ink">{username ?? '—'}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="text-muted">权限</span>
+            <span className="font-medium text-ink">{roleLabel}</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
           <div className="text-[12.5px] font-medium text-ink">Qdrant</div>
-          <Field label="服务地址" hint="形如 http://localhost:6333">
-            <Input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://localhost:6333"
-              spellCheck={false}
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="API Key（可选）">
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="未设置"
-              autoComplete="off"
-            />
+          <Field label="连接方式" hint="经 BFF 安全代理，密钥保存在服务端">
+            <div className="rounded-lg border bg-surface-2 px-3 py-2 font-mono text-[12.5px] text-muted">
+              /api/qdrant
+            </div>
           </Field>
           <TestRow state={qdrantTest} msg={qdrantTestMsg} onTest={runQdrantTest} />
         </div>
 
-        <div className="space-y-4 border-t pt-4">
-          <div className="text-[12.5px] font-medium text-ink">向量服务（DINOv3）</div>
+        <div className="space-y-3 border-t pt-4">
+          <div className="text-[12.5px] font-medium text-ink">向量服务</div>
           <Toggle
             checked={embed.useMock}
             onChange={(useMock) => setEmbed((e) => ({ ...e, useMock }))}
             label="使用 Mock（浏览器内伪向量，无需真实服务）"
           />
           {!embed.useMock && (
-            <>
-              <Field label="服务地址" hint="POST /embed/image，返回 { vector, payload?: { patch_num, ... } }">
-                <Input
-                  value={embed.url}
-                  onChange={(e) => setEmbed((s) => ({ ...s, url: e.target.value }))}
-                  placeholder="http://localhost:8765"
-                  spellCheck={false}
-                  autoComplete="off"
-                />
-              </Field>
-              <Field label="API Key（可选）">
-                <Input
-                  type="password"
-                  value={embed.apiKey}
-                  onChange={(e) => setEmbed((s) => ({ ...s, apiKey: e.target.value }))}
-                  placeholder="未设置"
-                  autoComplete="off"
-                />
-              </Field>
-            </>
+            <p className="text-[12px] text-muted">
+              真实服务地址由服务端环境变量 <span className="font-mono">EMBED_URL</span> 配置。
+            </p>
           )}
           <TestRow state={embedTest} msg={embedTestMsg} onTest={runEmbedTest} />
         </div>

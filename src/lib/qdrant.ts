@@ -1,4 +1,5 @@
-import { loadConnection } from './config'
+import { QDRANT_API_BASE } from './config'
+import { notifyAuthRequired } from './auth'
 
 export class QdrantError extends Error {
   status: number
@@ -22,23 +23,38 @@ type RequestOptions = {
   raw?: boolean
 }
 
+function errorDetail(json: unknown, text: string, res: Response): string {
+  return (
+    (json as { status?: { error?: string } })?.status?.error ||
+    (json as { error?: string })?.error ||
+    text ||
+    res.statusText
+  )
+}
+
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    const res = await fetch(`${QDRANT_API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+    })
+    if (res.status === 401) notifyAuthRequired()
+    return res
+  } catch {
+    throw new QdrantError('无法连接到 Qdrant 服务，请检查 BFF 与网络', 0)
+  }
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { url, apiKey } = loadConnection()
   const headers: Record<string, string> = {}
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
-  if (apiKey) headers['api-key'] = apiKey
 
-  let res: Response
-  try {
-    res = await fetch(`${url}${path}`, {
-      method: opts.method ?? 'GET',
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      signal: opts.signal,
-    })
-  } catch {
-    throw new QdrantError('无法连接到 Qdrant 服务，请检查服务地址与网络', 0)
-  }
+  const res = await apiFetch(path, {
+    method: opts.method ?? 'GET',
+    headers,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    signal: opts.signal,
+  })
 
   const text = await res.text()
   let json: unknown
@@ -49,12 +65,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    const detail =
-      (json as { status?: { error?: string } })?.status?.error ||
-      (json as { error?: string })?.error ||
-      text ||
-      res.statusText
-    throw new QdrantError(detail || `请求失败（${res.status}）`, res.status)
+    throw new QdrantError(errorDetail(json, text, res) || `请求失败（${res.status}）`, res.status)
   }
 
   if (opts.raw) return json as T
@@ -68,22 +79,15 @@ export interface TimedResult<T> {
 }
 
 async function requestTimed<T>(path: string, opts: RequestOptions = {}): Promise<TimedResult<T>> {
-  const { url, apiKey } = loadConnection()
   const headers: Record<string, string> = {}
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
-  if (apiKey) headers['api-key'] = apiKey
 
-  let res: Response
-  try {
-    res = await fetch(`${url}${path}`, {
-      method: opts.method ?? 'GET',
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      signal: opts.signal,
-    })
-  } catch {
-    throw new QdrantError('无法连接到 Qdrant 服务，请检查服务地址与网络', 0)
-  }
+  const res = await apiFetch(path, {
+    method: opts.method ?? 'GET',
+    headers,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    signal: opts.signal,
+  })
 
   const text = await res.text()
   let json: unknown
@@ -94,12 +98,7 @@ async function requestTimed<T>(path: string, opts: RequestOptions = {}): Promise
   }
 
   if (!res.ok) {
-    const detail =
-      (json as { status?: { error?: string } })?.status?.error ||
-      (json as { error?: string })?.error ||
-      text ||
-      res.statusText
-    throw new QdrantError(detail || `请求失败（${res.status}）`, res.status)
+    throw new QdrantError(errorDetail(json, text, res) || `请求失败（${res.status}）`, res.status)
   }
 
   const envelope = json as Envelope<T>
@@ -273,10 +272,7 @@ export const qdrant = {
   },
 
   async getProcessMemoryMetrics(signal?: AbortSignal): Promise<ProcessMemoryMetrics> {
-    const { url, apiKey } = loadConnection()
-    const headers: Record<string, string> = {}
-    if (apiKey) headers['api-key'] = apiKey
-    const res = await fetch(`${url}/metrics`, { signal, headers })
+    const res = await apiFetch('/metrics', { signal })
     const text = await res.text()
     const pick = (name: string) => {
       const m = text.match(new RegExp(`^${name}\\s+(\\d+(?:\\.\\d+)?)`, 'm'))
@@ -479,19 +475,15 @@ export const qdrant = {
   },
 
   snapshotDownloadUrl(name: string, snapshot: string): string {
-    const { url } = loadConnection()
-    return `${url}/collections/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}`
+    return `${QDRANT_API_BASE}/collections/${encodeURIComponent(name)}/snapshots/${encodeURIComponent(snapshot)}`
   },
 
   async uploadSnapshot(name: string, file: File): Promise<boolean> {
-    const { url, apiKey } = loadConnection()
     const form = new FormData()
     form.append('snapshot', file)
-    const headers: Record<string, string> = {}
-    if (apiKey) headers['api-key'] = apiKey
-    const res = await fetch(
-      `${url}/collections/${encodeURIComponent(name)}/snapshots/upload?priority=snapshot`,
-      { method: 'POST', headers, body: form },
+    const res = await apiFetch(
+      `/collections/${encodeURIComponent(name)}/snapshots/upload?priority=snapshot`,
+      { method: 'POST', body: form },
     )
     const text = await res.text()
     if (!res.ok) {

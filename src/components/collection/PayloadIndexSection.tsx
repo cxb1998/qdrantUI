@@ -27,7 +27,15 @@ const TYPE_LABEL: Record<string, string> = Object.fromEntries(
   INDEX_TYPES.map((t) => [t.value, t.label]),
 )
 
-export function PayloadIndexSection({ name, info }: { name: string; info: CollectionInfo }) {
+export function PayloadIndexSection({
+  name,
+  info,
+  canAdmin = false,
+}: {
+  name: string
+  info: CollectionInfo
+  canAdmin?: boolean
+}) {
   const toast = useToast()
   const createIndex = useCreatePayloadIndex(name)
   const deleteIndex = useDeletePayloadIndex(name)
@@ -100,7 +108,7 @@ export function PayloadIndexSection({ name, info }: { name: string; info: Collec
                   <th className="px-3 py-2 font-medium">字段</th>
                   <th className="px-3 py-2 font-medium">类型</th>
                   <th className="px-3 py-2 font-medium">点数</th>
-                  <th className="px-3 py-2 text-right font-medium">操作</th>
+                  {canAdmin && <th className="px-3 py-2 text-right font-medium">操作</th>}
                 </tr>
               </thead>
               <tbody>
@@ -116,17 +124,19 @@ export function PayloadIndexSection({ name, info }: { name: string; info: Collec
                       <td className="px-3 py-2.5 tnum text-muted">
                         {meta.points != null ? formatInt(meta.points) : '—'}
                       </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <button
-                          type="button"
-                          title="删除索引"
-                          aria-label={`删除 ${key} 索引`}
-                          onClick={() => setDeleteField(key)}
-                          className="inline-grid size-8 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
-                        >
-                          <IconTrash className="text-[16px]" />
-                        </button>
-                      </td>
+                      {canAdmin && (
+                        <td className="px-3 py-2.5 text-right">
+                          <button
+                            type="button"
+                            title="删除索引"
+                            aria-label={`删除 ${key} 索引`}
+                            onClick={() => setDeleteField(key)}
+                            className="inline-grid size-8 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+                          >
+                            <IconTrash className="text-[16px]" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -135,52 +145,54 @@ export function PayloadIndexSection({ name, info }: { name: string; info: Collec
           </div>
         )}
 
-        <div className="border-t pt-4">
-          <div className="mb-2 text-[12.5px] font-medium text-ink">创建索引</div>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="min-w-[10rem] flex-1">
-              <span className="mb-1 block text-[12px] text-muted">字段名</span>
-              <Input
-                value={fieldName}
-                onChange={(e) => setFieldName(e.target.value)}
-                list="payload-field-suggestions"
-                placeholder="file_name"
-                className="font-mono"
-              />
-              <datalist id="payload-field-suggestions">
-                {suggestions.map((k) => (
-                  <option key={k} value={k} />
-                ))}
-              </datalist>
-            </label>
-            <label>
-              <span className="mb-1 block text-[12px] text-muted">索引类型</span>
-              <Select
-                value={fieldType}
-                onChange={(e) => setFieldType(e.target.value)}
-                className="min-w-[10rem]"
+        {canAdmin && (
+          <div className="border-t pt-4">
+            <div className="mb-2 text-[12.5px] font-medium text-ink">创建索引</div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-[10rem] flex-1">
+                <span className="mb-1 block text-[12px] text-muted">字段名</span>
+                <Input
+                  value={fieldName}
+                  onChange={(e) => setFieldName(e.target.value)}
+                  list="payload-field-suggestions"
+                  placeholder="file_name"
+                  className="font-mono"
+                />
+                <datalist id="payload-field-suggestions">
+                  {suggestions.map((k) => (
+                    <option key={k} value={k} />
+                  ))}
+                </datalist>
+              </label>
+              <label>
+                <span className="mb-1 block text-[12px] text-muted">索引类型</span>
+                <Select
+                  value={fieldType}
+                  onChange={(e) => setFieldType(e.target.value)}
+                  className="min-w-[10rem]"
+                >
+                  {INDEX_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                      {t.sortable ? ' · 可排序' : ''}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button
+                variant="primary"
+                onClick={handleCreate}
+                loading={createIndex.isPending}
+                disabled={!fieldName.trim()}
               >
-                {INDEX_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                    {t.sortable ? ' · 可排序' : ''}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <Button
-              variant="primary"
-              onClick={handleCreate}
-              loading={createIndex.isPending}
-              disabled={!fieldName.trim()}
-            >
-              创建索引
-            </Button>
+                创建索引
+              </Button>
+            </div>
+            {sampleKeysQuery.data && sampleKeysQuery.data.length === 0 && (
+              <p className="mt-2 text-[11.5px] text-muted">未采样到 payload 字段，可手动输入字段名。</p>
+            )}
           </div>
-          {sampleKeysQuery.data && sampleKeysQuery.data.length === 0 && (
-            <p className="mt-2 text-[11.5px] text-muted">未采样到 payload 字段，可手动输入字段名。</p>
-          )}
-        </div>
+        )}
       </Card>
 
       <ConfirmDialog

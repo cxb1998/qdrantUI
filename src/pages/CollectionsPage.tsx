@@ -18,12 +18,14 @@ import {
 import { IconPlus, IconUpload, IconSearch, IconTrash, IconRefresh, IconSpinner } from '../components/ui/icons'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
+import { usePermissions } from '../hooks/useAuth'
 import { CreateCollectionDialog } from './dialogs/CreateCollectionDialog'
 import { UploadSnapshotDialog } from './dialogs/UploadSnapshotDialog'
 
 export function CollectionsPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { canAdmin } = usePermissions()
   const { rows, names, isLoading, isFetching, error, refetch, refetchAll } = useCollectionRows()
   const del = useDeleteCollection()
 
@@ -79,12 +81,16 @@ export function CollectionsPage() {
             </button>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
-            <Button size="lg" icon={<IconUpload />} onClick={() => setShowUpload(true)}>
-              上传备份
-            </Button>
-            <Button size="lg" variant="primary" icon={<IconPlus />} onClick={() => setShowCreate(true)}>
-              创建集合
-            </Button>
+            {canAdmin && (
+              <>
+                <Button size="lg" icon={<IconUpload />} onClick={() => setShowUpload(true)}>
+                  上传备份
+                </Button>
+                <Button size="lg" variant="primary" icon={<IconPlus />} onClick={() => setShowCreate(true)}>
+                  创建集合
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <div className="relative w-full">
@@ -107,14 +113,16 @@ export function CollectionsPage() {
           title="还没有集合"
           desc="创建第一个向量集合，或从备份文件恢复已有数据。"
           action={
-            <div className="flex gap-2">
-              <Button variant="secondary" icon={<IconUpload />} onClick={() => setShowUpload(true)}>
-                上传备份
-              </Button>
-              <Button variant="primary" icon={<IconPlus />} onClick={() => setShowCreate(true)}>
-                创建集合
-              </Button>
-            </div>
+            canAdmin ? (
+              <div className="flex gap-2">
+                <Button variant="secondary" icon={<IconUpload />} onClick={() => setShowUpload(true)}>
+                  上传备份
+                </Button>
+                <Button variant="primary" icon={<IconPlus />} onClick={() => setShowCreate(true)}>
+                  创建集合
+                </Button>
+              </div>
+            ) : undefined
           }
         />
       ) : filtered.length === 0 ? (
@@ -122,6 +130,7 @@ export function CollectionsPage() {
       ) : (
         <CollectionsTable
           rows={filtered}
+          canAdmin={canAdmin}
           onOpen={(name) => navigate(`/collections/${encodeURIComponent(name)}/points`)}
           onDelete={setDeleteTarget}
         />
@@ -151,10 +160,12 @@ export function CollectionsPage() {
 
 function CollectionsTable({
   rows,
+  canAdmin,
   onOpen,
   onDelete,
 }: {
   rows: CollectionRow[]
+  canAdmin: boolean
   onOpen: (name: string) => void
   onDelete: (name: string) => void
 }) {
@@ -236,18 +247,20 @@ function CollectionsTable({
                 </div>
 
                 <div className={`${td} flex justify-center`} role="cell">
-                  <button
-                    type="button"
-                    title="删除"
-                    aria-label="删除"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(r.name)
-                    }}
-                    className="grid size-8 place-items-center rounded-lg text-[16px] text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
-                  >
-                    <IconTrash />
-                  </button>
+                  {canAdmin && (
+                    <button
+                      type="button"
+                      title="删除"
+                      aria-label="删除"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(r.name)
+                      }}
+                      className="grid size-8 place-items-center rounded-lg text-[16px] text-muted transition hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+                    >
+                      <IconTrash />
+                    </button>
+                  )}
                 </div>
             </div>
           )

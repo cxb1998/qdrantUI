@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 # Secrets & local env
+server/users.json
 .env
 .env.*
 !.env.example

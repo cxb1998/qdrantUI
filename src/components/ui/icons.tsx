@@ -225,3 +225,17 @@ export const IconAlert = (p: IconProps) => (
 )
 
 export const IconWarn = IconAlert
+
+export const IconEye = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </Base>
+)
+
+export const IconEyeOff = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.4M9.9 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a18.2 18.2 0 0 1-4.1 5.2M6.1 6.1C3.5 7.8 2 12 2 12a18.2 18.2 0 0 0 11.9 6.9" />
+  </Base>
+)
