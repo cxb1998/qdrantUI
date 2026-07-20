@@ -5,7 +5,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const usersFile = resolve(__dirname, '../server/users.json')
+const usersFile = process.env.USERS_FILE?.trim() || resolve(__dirname, '../server/users.json')
 
 const username = process.argv[2]?.trim()
 const password = process.argv[3]

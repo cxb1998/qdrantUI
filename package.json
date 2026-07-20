@@ -13,7 +13,9 @@
     "set-password": "node scripts/set-password.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "mock:embed": "node scripts/mock-embed-server.mjs"
+    "mock:embed": "node scripts/mock-embed-server.mjs",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.10",

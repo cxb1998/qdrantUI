@@ -17,7 +17,7 @@ export function ImageSearchPanel({
 }: {
   info: CollectionInfo
   onSearchStart: () => void
-  onSearchDone: (result: { previewUrl: string; vector: number[]; mocked: boolean }) => void
+  onSearchDone: (result: { previewUrl: string; vector: number[] }) => void
   onClear: () => void
 }) {
   const toast = useToast()
@@ -69,7 +69,7 @@ export function ImageSearchPanel({
     onSearchStart()
     try {
       const embedded = await embedImage(file, dim)
-      onSearchDone({ previewUrl, vector: embedded.vector, mocked: !!embedded.mocked })
+      onSearchDone({ previewUrl, vector: embedded.vector })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '以图搜图失败')
       onClear()

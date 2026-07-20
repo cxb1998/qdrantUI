@@ -48,7 +48,6 @@ function initialPageStack(sort: PointsSort): PageCursor[] {
 interface ImageSearchState {
   previewUrl: string
   vector: number[]
-  mocked: boolean
 }
 
 export function PointsTab({ name, info }: { name: string; info: CollectionInfo }) {

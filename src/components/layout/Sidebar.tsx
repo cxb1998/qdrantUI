@@ -6,36 +6,31 @@ import {
   IconDataset,
   IconSettings,
   IconLock,
+  IconLogOut,
 } from '../ui/icons'
 import { useConnection } from '../../hooks/useConnection'
 import { useAuthOptional, usePermissions } from '../../hooks/useAuth'
 import { SettingsDialog } from './SettingsDialog'
 import { QDRANT_API_BASE } from '../../lib/config'
 
-const CONN_LABEL = {
-  checking: { text: '连接中…', color: 'var(--color-warn)' },
+type ConnState = 'checking' | 'online' | 'offline'
+
+const CONN_META: Record<ConnState, { text: string; color: string }> = {
+  checking: { text: '连接中', color: 'var(--color-warn)' },
   online: { text: '已连接', color: 'var(--color-ok)' },
   offline: { text: '未连接', color: 'var(--color-danger)' },
 }
 
-const EMBED_LABEL = {
-  mock: { text: 'Mock', color: 'var(--color-indigo)' },
-  checking: { text: '连接中…', color: 'var(--color-warn)' },
-  online: { text: '已连接', color: 'var(--color-ok)' },
-  offline: { text: '未连接', color: 'var(--color-danger)' },
-}
+const EMBED_META = CONN_META
 
 export function Sidebar() {
   const auth = useAuthOptional()
   const { role, username } = usePermissions()
   const { state, embedState } = useConnection()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const c = CONN_LABEL[state]
-  const e = EMBED_LABEL[embedState]
-  const embedHost =
-    embedState === 'mock' ? '浏览器内伪向量' : '服务端代理'
 
   const roleLabel = role === 'admin' ? '管理员' : '只读'
+  const embedHint = '经 BFF 代理'
 
   return (
     <aside className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r bg-surface">
@@ -60,75 +55,122 @@ export function Sidebar() {
         <LockedItem icon={<IconDataset />} label="数据集" />
       </nav>
 
-      <div className="space-y-2 border-t px-3 py-3">
-        {username && (
-          <div className="rounded-lg bg-surface-2 px-2.5 py-2">
-            <div className="truncate text-[12.5px] font-medium text-ink">{username}</div>
-            <div className="mt-0.5 text-[11px] text-muted">{roleLabel}</div>
+      {username && (
+        <div className="border-t bg-gradient-to-b from-transparent to-[var(--color-surface-2)] px-3 py-3">
+          <div className="overflow-hidden rounded-[12px] border border-[var(--color-line)] bg-surface shadow-[0_1px_3px_rgba(18,20,26,0.04)]">
+            <div className="flex items-center gap-2.5 px-3 py-2.5">
+              <div
+                className="grid size-8 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-[var(--color-indigo-deep)]"
+                style={{ background: 'var(--color-indigo-soft)' }}
+                aria-hidden
+              >
+                {username[0]?.toUpperCase() ?? '?'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-medium leading-tight text-ink">{username}</div>
+                <span
+                  className={`mt-1 inline-flex rounded-md px-1.5 py-0.5 text-[10.5px] font-medium leading-none ${
+                    role === 'admin'
+                      ? 'bg-[var(--color-indigo-soft)] text-[var(--color-indigo-deep)]'
+                      : 'bg-[var(--color-line)]/50 text-muted'
+                  }`}
+                >
+                  {roleLabel}
+                </span>
+              </div>
+            </div>
+
+            <div className="border-t border-[var(--color-line)]/70 px-3 py-2">
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-soft">
+                服务状态
+              </div>
+              <div className="space-y-1">
+                <StatusRow
+                  label="Qdrant"
+                  hint={QDRANT_API_BASE}
+                  meta={CONN_META[state]}
+                  active={state === 'online'}
+                />
+                <StatusRow
+                  label="向量服务"
+                  hint={embedHint}
+                  meta={EMBED_META[embedState]}
+                  active={embedState === 'online'}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 border-t border-[var(--color-line)]/70">
+              <FooterAction icon={<IconSettings />} label="设置" onClick={() => setSettingsOpen(true)} />
+              <FooterAction
+                icon={<IconLogOut />}
+                label="退出"
+                onClick={() => void auth?.logout()}
+                className="border-l border-[var(--color-line)]/70"
+              />
+            </div>
           </div>
-        )}
-        <ConnRow label="Qdrant" status={c.text} color={c.color} host={QDRANT_API_BASE} ping={state === 'online'} />
-        <ConnRow
-          label="Embedding"
-          status={e.text}
-          color={e.color}
-          host={embedHost}
-          ping={embedState === 'online' || embedState === 'mock'}
-        />
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-muted transition hover:bg-[var(--color-line)]/60 hover:text-ink"
-        >
-          <IconSettings className="text-[17px]" />
-          设置
-        </button>
-        <button
-          onClick={() => void auth?.logout()}
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-muted transition hover:bg-[var(--color-line)]/60 hover:text-ink"
-        >
-          退出登录
-        </button>
-      </div>
+        </div>
+      )}
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </aside>
   )
 }
 
-function ConnRow({
+function StatusRow({
   label,
-  status,
-  color,
-  host,
-  ping,
+  hint,
+  meta,
+  active,
 }: {
   label: string
-  status: string
-  color: string
-  host: string
-  ping: boolean
+  hint: string
+  meta: { text: string; color: string }
+  active: boolean
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-      <span className="relative flex size-2 shrink-0">
-        {ping && (
+    <div
+      className="flex items-center gap-2 rounded-md px-1 py-0.5"
+      title={hint}
+    >
+      <span className="relative flex size-1.5 shrink-0">
+        {active && (
           <span
-            className="absolute inline-flex size-2 animate-ping rounded-full opacity-60"
-            style={{ background: color }}
+            className="absolute -inset-0.5 animate-ping rounded-full opacity-40"
+            style={{ background: meta.color }}
           />
         )}
-        <span className="relative inline-flex size-2 rounded-full" style={{ background: color }} />
+        <span className="relative size-1.5 rounded-full" style={{ background: meta.color }} />
       </span>
-      <div className="min-w-0 flex-1 leading-tight">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[11px] font-medium text-muted">{label}</span>
-          <span className="text-[12px] font-medium text-ink">{status}</span>
-        </div>
-        <div className="truncate font-mono text-[10.5px] text-muted" title={host}>
-          {host}
-        </div>
-      </div>
+      <span className="min-w-0 flex-1 truncate text-[12px] text-muted">{label}</span>
+      <span className="shrink-0 text-[11.5px] font-medium tabular-nums" style={{ color: meta.color }}>
+        {meta.text}
+      </span>
     </div>
+  )
+}
+
+function FooterAction({
+  icon,
+  label,
+  onClick,
+  className = '',
+}: {
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center justify-center gap-1.5 px-2 py-2.5 text-[12.5px] font-medium text-muted transition hover:bg-[var(--color-line)]/35 hover:text-ink ${className}`}
+    >
+      <span className="text-[15px]">{icon}</span>
+      {label}
+    </button>
   )
 }
 

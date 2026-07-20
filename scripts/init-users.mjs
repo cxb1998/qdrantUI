@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { hash } from 'bcryptjs'
-import { writeFileSync, existsSync } from 'node:fs'
+import { writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const out = resolve(__dirname, '../server/users.json')
+const out = process.env.USERS_FILE?.trim() || resolve(__dirname, '../server/users.json')
 
 const defaults = [
   { username: 'admin', password: 'admin123', role: 'admin' },
@@ -25,6 +25,7 @@ async function main() {
       role: u.role,
     })
   }
+  mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, `${JSON.stringify(users, null, 2)}\n`, { mode: 0o600 })
   console.log(`已生成 ${out}`)
   console.log('默认账号：')

@@ -55,16 +55,30 @@ export function getSessionUser(c: Context): SessionUser | null {
   return parseSessionToken(getCookie(c, COOKIE_NAME))
 }
 
+/** 仅 HTTPS 请求设置 Secure Cookie；可用 COOKIE_SECURE=true/false 强制覆盖 */
+function cookieSecure(c: Context): boolean {
+  if (process.env.COOKIE_SECURE === 'true') return true
+  if (process.env.COOKIE_SECURE === 'false') return false
+  const forwarded = c.req.header('x-forwarded-proto')
+  if (forwarded) return forwarded.split(',')[0]!.trim() === 'https'
+  try {
+    return new URL(c.req.url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function setSessionCookie(c: Context, user: SessionUser) {
+  const secure = cookieSecure(c)
   setCookie(c, COOKIE_NAME, createSessionToken(user), {
     httpOnly: true,
     sameSite: 'Lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure,
     path: '/',
     maxAge: MAX_AGE_SEC,
   })
 }
 
 export function clearSessionCookie(c: Context) {
-  deleteCookie(c, COOKIE_NAME, { path: '/' })
+  deleteCookie(c, COOKIE_NAME, { path: '/', secure: cookieSecure(c) })
 }

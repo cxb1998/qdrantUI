@@ -239,3 +239,11 @@ export const IconEyeOff = (p: IconProps) => (
     <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.4M9.9 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a18.2 18.2 0 0 1-4.1 5.2M6.1 6.1C3.5 7.8 2 12 2 12a18.2 18.2 0 0 0 11.9 6.9" />
   </Base>
 )
+
+export const IconLogOut = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M9 5H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4" />
+    <path d="m14 8 4 4-4 4" />
+    <path d="M18 12H9" />
+  </Base>
+)

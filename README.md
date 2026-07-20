@@ -62,6 +62,115 @@ npm run build
 npm run start        # 同时提供 dist 静态资源与 /api
 ```
 
+### Docker 一键启动（Qdrant + 控制台）
+
+将 **Qdrant 与控制台** 打包进**同一个容器**，Embedding 仍由外部服务提供（默认指向宿主机 `8765`）。
+
+```bash
+# 构建并后台启动（只需这一条命令）
+docker compose up -d --build
+# 或
+npm run docker:up
+```
+
+浏览器打开 **http://localhost:8787**，使用 `admin` / `admin123` 登录。
+
+容器内架构：
+
+```
+同一容器
+├── Qdrant      :6333  （向量库，数据卷 /data/qdrant）
+└── 控制台 BFF  :8787  （前端 + API，用户卷 /data/config）
+         ↓
+    外部 Embedding（宿主机或另一容器，EMBED_URL 配置）
+```
+
+常用操作：
+
+```bash
+# 停止
+docker compose down
+
+# 查看日志
+docker compose logs -f
+
+# 容器内改密码
+docker compose exec qdrant-ui node scripts/set-password.mjs admin 你的新密码
+```
+
+环境变量（可在项目根目录建 `.env` 供 compose 读取）：
+
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `SESSION_SECRET` | Session 签名 | 占位值（生产务必修改） |
+| `EMBED_URL` | 外部 Embedding 地址 | `http://host.docker.internal:8765` |
+| `EMBED_API_KEY` | Embedding Key | 空 |
+
+> 向量服务需在宿主机运行 `npm run mock:embed` 或你的真实 Embedding 服务；容器会通过 `host.docker.internal` 访问宿主机。
+
+> Qdrant 仅在容器内部监听 `:6333`，**不映射到宿主机**，避免与本机已有 Qdrant 容器冲突。只需访问 **http://localhost:8787** 即可。
+
+#### 端口被占用（Bind for 0.0.0.0:6333 / 8787 failed）
+
+若报 `port is already allocated`：
+
+```bash
+# 先停掉可能残留的容器
+docker compose down
+
+# 查看谁占用了 8787
+lsof -i :8787
+```
+
+然后重新 `docker compose up -d`。若 8787 也被占用，可在 `docker-compose.yml` 改为 `"8788:8787"`，浏览器访问 http://localhost:8788。
+
+#### Docker 构建失败（拉取镜像 EOF / timeout）
+
+报错类似 `auth.docker.io ... i/o timeout` 或 `failed to resolve source metadata for docker.io/...`，是 **访问 Docker Hub 网络不通**（国内较常见）。
+
+项目**默认已改用国内镜像站**拉取 Node 基础镜像（`docker.m.daocloud.io`），请先拉取最新代码后重试：
+
+```bash
+git pull
+docker compose build --no-cache
+docker compose up -d
+```
+
+**先单独测试能否拉到基础镜像：**
+
+```bash
+docker pull docker.m.daocloud.io/library/node:22-bookworm-slim
+```
+
+若上面成功，再执行 `docker compose up -d --build`。
+
+**若 DaoCloud 也超时**，在项目 `.env` 里换其他镜像站后重试：
+
+```bash
+# 任选其一
+NODE_IMAGE=docker.1ms.run/library/node:22-bookworm-slim
+# NODE_IMAGE=dockerproxy.com/library/node:22-bookworm-slim
+```
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+**可选：配置 Docker Desktop 镜像加速**
+
+Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io"
+  ]
+}
+```
+
+**说明**：Dockerfile 从 GitHub 下载 Qdrant 二进制，不依赖 `qdrant/qdrant` 镜像；构建阶段 `npm` 默认走 `npmmirror.com`。
+
 ## 连接配置
 
 在项目根目录复制并编辑 `.env`（模板见 `.env.example`）：
@@ -75,8 +184,7 @@ npm run start        # 同时提供 dist 静态资源与 /api
 | `SESSION_SECRET` | Session 签名密钥 | 开发用占位值 |
 
 - 修改 `.env` 后需**重启 BFF** 才生效。
-- 设置弹窗中可切换 Embedding **Mock 模式**（仅存于本机浏览器，默认开启；无需真实向量服务即可体验入库/搜图流程）。
-- 关闭 Mock 且需要真实向量时，可另开终端运行 `npm run mock:embed`（本地 Mock 服务，默认 `8765` 端口）。
+- 向量相关功能（入库、以图搜图）需配置可用的 Embedding 服务；本地开发可运行 `npm run mock:embed`（默认 `8765` 端口）。
 
 ## 修改密码
 

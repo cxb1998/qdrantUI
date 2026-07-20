@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Dialog } from '../ui/Dialog'
 import { Button } from '../ui/Button'
-import { Field, Toggle } from '../ui/fields'
-import { loadConnection, saveEmbedSettings, type EmbedSettings } from '../../lib/config'
+import { Field } from '../ui/fields'
 import { qdrant } from '../../lib/qdrant'
 import { embedHealth } from '../../lib/embed'
-import { useToast } from '../ui/Toast'
 import { usePermissions } from '../../hooks/useAuth'
 import { IconCheck, IconAlert, IconSpinner } from '../ui/icons'
 
@@ -18,9 +16,7 @@ export function SettingsDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
-  const toast = useToast()
   const { role, username } = usePermissions()
-  const [embed, setEmbed] = useState<EmbedSettings>({ useMock: true })
   const [qdrantTest, setQdrantTest] = useState<TestState>('idle')
   const [qdrantTestMsg, setQdrantTestMsg] = useState('')
   const [embedTest, setEmbedTest] = useState<TestState>('idle')
@@ -28,7 +24,6 @@ export function SettingsDialog({
 
   useEffect(() => {
     if (open) {
-      setEmbed(loadConnection().embed)
       setQdrantTest('idle')
       setQdrantTestMsg('')
       setEmbedTest('idle')
@@ -49,24 +44,15 @@ export function SettingsDialog({
   }
 
   async function runEmbedTest() {
-    const prev = loadConnection().embed
-    saveEmbedSettings(embed)
     setEmbedTest('testing')
     try {
       await embedHealth()
       setEmbedTest('ok')
-      setEmbedTestMsg(embed.useMock ? 'Mock 模式已启用' : '向量服务连接正常')
+      setEmbedTestMsg('向量服务连接正常')
     } catch (e) {
       setEmbedTest('fail')
       setEmbedTestMsg(e instanceof Error ? e.message : '连接失败')
-      saveEmbedSettings(prev)
     }
-  }
-
-  function save() {
-    saveEmbedSettings(embed)
-    toast.success('设置已保存')
-    onOpenChange(false)
   }
 
   const roleLabel = role === 'admin' ? '管理员' : role === 'viewer' ? '只读' : '—'
@@ -76,17 +62,12 @@ export function SettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="设置"
-      description="Qdrant 与向量服务由服务端代理，无需在浏览器填写密钥。"
+      description="Qdrant 与向量服务由服务端代理，地址与密钥在服务端 .env 配置。"
       width={480}
       footer={
-        <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button variant="primary" onClick={save}>
-            保存
-          </Button>
-        </>
+        <Button variant="primary" onClick={() => onOpenChange(false)}>
+          关闭
+        </Button>
       }
     >
       <div className="space-y-5">
@@ -113,16 +94,11 @@ export function SettingsDialog({
 
         <div className="space-y-3 border-t pt-4">
           <div className="text-[12.5px] font-medium text-ink">向量服务</div>
-          <Toggle
-            checked={embed.useMock}
-            onChange={(useMock) => setEmbed((e) => ({ ...e, useMock }))}
-            label="使用 Mock（浏览器内伪向量，无需真实服务）"
-          />
-          {!embed.useMock && (
-            <p className="text-[12px] text-muted">
-              真实服务地址由服务端环境变量 <span className="font-mono">EMBED_URL</span> 配置。
-            </p>
-          )}
+          <Field label="连接方式" hint="经 BFF 代理，地址由环境变量 EMBED_URL 配置">
+            <div className="rounded-lg border bg-surface-2 px-3 py-2 font-mono text-[12.5px] text-muted">
+              /api/embed
+            </div>
+          </Field>
           <TestRow state={embedTest} msg={embedTestMsg} onTest={runEmbedTest} />
         </div>
       </div>

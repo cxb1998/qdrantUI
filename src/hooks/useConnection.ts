@@ -4,7 +4,7 @@ import { embedHealth } from '../lib/embed'
 import { qdrant } from '../lib/qdrant'
 
 export type ConnState = 'checking' | 'online' | 'offline'
-export type EmbedConnState = 'mock' | 'checking' | 'online' | 'offline'
+export type EmbedConnState = 'checking' | 'online' | 'offline'
 
 /** 读取当前连接信息，并对 Qdrant / 向量服务做轻量探活 */
 export function useConnection() {
@@ -12,11 +12,7 @@ export function useConnection() {
   const [state, setState] = useState<ConnState>('checking')
   const [embedState, setEmbedState] = useState<EmbedConnState>('checking')
 
-  const checkEmbed = useCallback(async (connection: Connection) => {
-    if (connection.embed.useMock) {
-      setEmbedState('mock')
-      return
-    }
+  const checkEmbed = useCallback(async () => {
     setEmbedState('checking')
     try {
       await embedHealth()
@@ -28,30 +24,20 @@ export function useConnection() {
 
   const check = useCallback(async () => {
     setState('checking')
-    const current = loadConnection()
     try {
       await qdrant.health()
       setState('online')
     } catch {
       setState('offline')
     }
-    await checkEmbed(current)
+    await checkEmbed()
   }, [checkEmbed])
 
   useEffect(() => {
-    const onChange = () => {
-      const next = loadConnection()
-      setConn(next)
-      check()
-    }
-    window.addEventListener('qdrant-connection-changed', onChange)
     setConn(loadConnection())
     check()
     const id = window.setInterval(check, 12_000)
-    return () => {
-      window.removeEventListener('qdrant-connection-changed', onChange)
-      window.clearInterval(id)
-    }
+    return () => window.clearInterval(id)
   }, [check])
 
   return { conn, state, embedState, recheck: check }

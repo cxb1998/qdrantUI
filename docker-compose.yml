@@ -1,0 +1,26 @@
+services:
+  qdrant-ui:
+    build:
+      context: .
+      args:
+        # 默认走国内镜像站，避免 docker.io 超时；可覆盖为 node:22-bookworm-slim
+        NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-bookworm-slim}
+    container_name: qdrant-ui
+    ports:
+      - "8787:8787"   # 控制台（浏览器访问）；Qdrant 仅在容器内 :6333，不占用宿主机端口
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET:-please-change-me-in-production}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      EMBED_URL: ${EMBED_URL:-http://host.docker.internal:8765}
+      EMBED_API_KEY: ${EMBED_API_KEY:-}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_data:/data/qdrant
+      - app_config:/data/config
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  qdrant_data:
+  app_config:
