@@ -171,6 +171,66 @@ Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
 
 **说明**：Dockerfile 从 GitHub 下载 Qdrant 二进制，不依赖 `qdrant/qdrant` 镜像；构建阶段 `npm` 默认走 `npmmirror.com`。
 
+#### 分发给其他项目 / 机器使用
+
+当前 README 的 `docker compose up -d --build` 适合**在本机克隆仓库后构建**。若要给其他同事、服务器或业务项目使用，常用有三种方式：
+
+**方式 1：对方克隆仓库后构建（适合会改代码的团队）**
+
+```bash
+git clone https://github.com/cxb1998/qdrantUI.git
+cd qdrantUI
+cp .env.example .env    # 修改 SESSION_SECRET、EMBED_URL 等
+docker compose up -d --build
+```
+
+对方只需 Docker，无需安装 Node.js。首次启动容器会自动生成默认账号；生产环境请尽快改密。
+
+**方式 2：导出镜像文件（适合内网离线交付）**
+
+在你这台机器上构建并导出：
+
+```bash
+docker compose build
+docker save webui-qdrant-ui:latest -o qdrant-ui.tar
+```
+
+将 `qdrant-ui.tar`、`docker-compose.yml`、`.env.example` 发给对方。对方导入并启动：
+
+```bash
+docker load -i qdrant-ui.tar
+cp .env.example .env    # 按需修改
+# 将 docker-compose.yml 中 build: 改为 image: webui-qdrant-ui:latest 后：
+docker compose up -d
+```
+
+> 若对方 `compose` 仍使用 `build:`，需把 `docker-compose.yml` 里的 `build` 段改为 `image: webui-qdrant-ui:latest`，否则会重新构建。
+
+**方式 3：推送到镜像仓库（适合长期维护、多机部署）**
+
+```bash
+# 构建并打标签（示例：GitHub Container Registry）
+docker compose build
+docker tag webui-qdrant-ui:latest ghcr.io/cxb1998/qdrant-ui:latest
+docker push ghcr.io/cxb1998/qdrant-ui:latest
+```
+
+其他机器拉取后，在 `docker-compose.yml` 使用 `image: ghcr.io/cxb1998/qdrant-ui:latest` 替代 `build:`，再 `docker compose up -d`。
+
+**对方还需要准备什么**
+
+| 项目 | 说明 |
+|------|------|
+| **Embedding 服务** | 不在镜像内；需另起 `npm run mock:embed` 或真实向量 API，并配置 `EMBED_URL` |
+| **环境变量** | 至少修改 `SESSION_SECRET`；HTTPS 前置代理时设 `COOKIE_SECURE=true` |
+| **数据持久化** | Qdrant 数据在卷 `qdrant_data`，账号在 `app_config`；`docker compose down` 不删卷 |
+| **Linux 访问宿主机 Embedding** | `host.docker.internal` 在 Linux 需 compose 中 `extra_hosts`（已配置）；也可直接把 `EMBED_URL` 写成内网 IP |
+
+**集成到其他项目时**
+
+- 可将本仓库的 `docker-compose.yml` 片段合并进业务项目的 compose，或单独起一个 `qdrant-ui` 服务。
+- 向量数据与控制台账号随 Docker 卷保存，与镜像版本独立；升级镜像时一般只需 `docker compose pull && docker compose up -d`（若已发布到仓库）。
+
 ## 连接配置
 
 在项目根目录复制并编辑 `.env`（模板见 `.env.example`）：
@@ -181,10 +241,53 @@ Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
 | `QDRANT_API_KEY` | Qdrant API Key（可选） | 空 |
 | `EMBED_URL` | Embedding 服务地址 | `http://127.0.0.1:8765` |
 | `EMBED_API_KEY` | Embedding API Key（可选） | 空 |
-| `SESSION_SECRET` | Session 签名密钥 | 开发用占位值 |
+| `SESSION_SECRET` | Session 签名密钥（见下方说明） | 开发用占位值 |
+| `COOKIE_SECURE` | 是否给登录 Cookie 加 `Secure` 标志 | `false`（HTTPS 前置代理后改为 `true`） |
 
 - 修改 `.env` 后需**重启 BFF** 才生效。
 - 向量相关功能（入库、以图搜图）需配置可用的 Embedding 服务；本地开发可运行 `npm run mock:embed`（默认 `8765` 端口）。
+
+## SESSION_SECRET 说明
+
+`SESSION_SECRET` 是 **登录 Session 的签名密钥**。用户登录后，BFF 会签发 `qdrant_session` Cookie，其中包含用户名、角色、过期时间等信息；服务端用 `SESSION_SECRET` 对 Cookie 做 HMAC 签名，防止被篡改或伪造。
+
+**与用户密码无关**：账号密码存在 `server/users.json`；`SESSION_SECRET` 只保护「已登录状态」是否可信。
+
+### 当前默认值
+
+| 场景 | 默认值 |
+|------|--------|
+| `.env.example` / 未正确配置时 | `请改为随机长字符串`（占位，勿用于生产） |
+| 代码 fallback（无 `.env`） | `dev-change-me-in-production` |
+| Docker Compose | `please-change-me-in-production` |
+
+本地开发可用占位值；**对外部署前必须改成随机长字符串**。
+
+### 如何生成
+
+```bash
+openssl rand -base64 32
+```
+
+或使用 Node.js：
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+写入 `.env`：
+
+```bash
+SESSION_SECRET=这里粘贴生成的随机字符串
+```
+
+Docker 部署时在项目根目录 `.env` 中配置即可（`docker compose` 会读取）；修改后执行 `docker compose up -d` 重启容器。
+
+### 注意事项
+
+- **修改后**：所有已登录用户 Cookie 失效，需重新登录。
+- **多实例**：若多台 BFF 共用同一套登录，必须使用**相同**的 `SESSION_SECRET`。
+- **与 HTTPS**：本地 HTTP 访问时保持 `COOKIE_SECURE=false`；前面有 Nginx 等 HTTPS 反向代理时，设为 `COOKIE_SECURE=true`。
 
 ## 修改密码
 
@@ -204,7 +307,6 @@ npm run set-password -- viewer 你的新密码
 
 - 仅首次部署、尚无用户文件时，运行 `npm run init:users` 生成默认账号。
 - 若 `users.json` 已存在，`init:users` 会拒绝覆盖；改密请用 `set-password`，不要删文件重来（除非有意重置全部账号）。
-- 生产环境请同时修改 `.env` 中的 `SESSION_SECRET` 为随机长字符串。
 
 ## 功能
 
