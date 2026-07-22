@@ -2,6 +2,8 @@ services:
   qdrant-ui:
     build:
       context: .
+      # 构建阶段走宿主机网络，避免 Docker 桥接网络 DNS/路由导致 npm 长时间无响应
+      network: host
       args:
         # 默认走国内镜像站，避免 docker.io 超时；可覆盖为 node:22-bookworm-slim
         NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-bookworm-slim}

@@ -200,34 +200,37 @@ Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
 
 **说明**：Qdrant 从 `qdrant/qdrant` 镜像复制，构建阶段不再 `apt-get`；`npm` 默认走 `npmmirror.com`。默认固定为 `v1.18.3`（可复现构建），**不建议**用 `latest` 标签；如需升级可在 `.env` 设置 `QDRANT_IMAGE=qdrant/qdrant:v1.18.3` 后重新 `docker compose build --no-cache`。
 
-#### 构建时 `npm ci` 失败（Exit handler never called）
+#### 构建时 `npm ci` 失败或长时间卡住
 
-报错类似 `npm error Exit handler never called!`，多为 **构建容器内网络不稳** 或 **npm 镜像源超时**（约 70s 后失败较常见）。
+报错类似 `npm error Exit handler never called!`，或日志停在 `npm ci attempt 1...` **很久不动**，多为 **Docker 构建网络访问 npm 源慢/不通**（`npm ci` 默认几乎不输出进度，看起来像卡死）。
 
 ```bash
 git pull origin main
-docker compose build --no-cache
+DOCKER_BUILDKIT=1 docker compose build --no-cache --progress=plain
 ```
 
-若仍失败，在 `.env` 换 npm 源后重试：
+构建时会打印 `registry ok 200` 和包下载日志；若 npmmirror 不通会自动回退 `registry.npmjs.org`。
+
+若仍卡住，在 `.env` **直接指定** npm 源后重试：
 
 ```bash
-# 任选其一
+# 任选其一（哪个 curl 通就用哪个）
 NPM_REGISTRY=https://registry.npmjs.org
 # NPM_REGISTRY=https://registry.npmmirror.com
 ```
 
 ```bash
-docker compose build --no-cache
-docker compose up -d
+docker compose build --no-cache --progress=plain
 ```
 
-也可先在宿主机测试网络：
+Linux 服务器还可单独测试：
 
 ```bash
 curl -I https://registry.npmmirror.com
 curl -I https://registry.npmjs.org
 ```
+
+> macOS 上 Docker Desktop 对 `network: host` 支持有限；若卡住超过 5 分钟，优先换 `NPM_REGISTRY=https://registry.npmjs.org`。
 
 #### 容器状态一直 Restarting
 

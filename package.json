@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "mock:embed": "node scripts/mock-embed-server.mjs",
     "docker:up": "docker compose up -d --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "docker:build": "DOCKER_BUILDKIT=1 docker compose build --progress=plain"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.10",

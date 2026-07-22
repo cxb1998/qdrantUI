@@ -13,20 +13,28 @@ WORKDIR /app
 COPY --from=qdrant /etc/ssl/certs /etc/ssl/certs
 
 COPY package.json package-lock.json ./
-RUN set -eux; \
-  npm config set registry "${NPM_REGISTRY}"; \
+ENV NPM_CONFIG_LOGLEVEL=info \
+    NPM_CONFIG_PROGRESS=true \
+    NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false \
+    NODE_OPTIONS=--dns-result-order=ipv4first
+
+RUN --mount=type=cache,target=/root/.npm \
+  set -eux; \
   npm config set fetch-retries 5; \
   npm config set fetch-retry-mintimeout 20000; \
   npm config set fetch-retry-maxtimeout 120000; \
   npm config set fetch-timeout 600000; \
-  npm config set maxsockets 5; \
-  for i in 1 2 3; do \
-    echo "npm ci attempt ${i}..."; \
-    npm ci --no-audit --no-fund && break; \
-    if [ "${i}" -eq 3 ]; then exit 1; fi; \
-    echo "npm ci failed, retry in 5s..."; \
-    sleep 5; \
-  done
+  npm config set maxsockets 3; \
+  install_deps() { \
+    registry="$1"; \
+    echo ">>> npm registry: ${registry}"; \
+    npm config set registry "${registry}"; \
+    node -e "fetch('${registry}').then((r)=>console.log('registry ok', r.status)).catch((e)=>{console.error('registry unreachable', e); process.exit(1)})"; \
+    npm ci --no-audit --no-fund --loglevel info; \
+  }; \
+  install_deps "${NPM_REGISTRY}" \
+    || (echo ">>> primary registry failed, fallback to npmjs..." && install_deps "https://registry.npmjs.org")
 
 COPY . .
 RUN npm run build
