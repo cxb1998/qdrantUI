@@ -19,12 +19,12 @@ services:
       EMBED_API_KEY: ${EMBED_API_KEY:-}
       QDRANT_API_KEY: ${QDRANT_API_KEY:-}
     volumes:
-      - qdrant_data:/data/qdrant
+      # 默认映射到与项目同级目录 ../qdrant_data，可用 QDRANT_DATA_DIR 覆盖
+      - ${QDRANT_DATA_DIR:-../qdrant_data}:/data/qdrant
       - app_config:/data/config
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 volumes:
-  qdrant_data:
   app_config:
