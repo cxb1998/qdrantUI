@@ -1,15 +1,32 @@
 ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-bookworm-slim
 ARG QDRANT_IMAGE=qdrant/qdrant:v1.18.3
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 FROM ${QDRANT_IMAGE} AS qdrant
 
 FROM ${NODE_IMAGE} AS builder
+ARG NPM_REGISTRY
 
 WORKDIR /app
 
+# builder 阶段同样需要 CA 证书，否则 npm 拉包可能异常失败
+COPY --from=qdrant /etc/ssl/certs /etc/ssl/certs
+
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com \
-  && npm ci
+RUN set -eux; \
+  npm config set registry "${NPM_REGISTRY}"; \
+  npm config set fetch-retries 5; \
+  npm config set fetch-retry-mintimeout 20000; \
+  npm config set fetch-retry-maxtimeout 120000; \
+  npm config set fetch-timeout 600000; \
+  npm config set maxsockets 5; \
+  for i in 1 2 3; do \
+    echo "npm ci attempt ${i}..."; \
+    npm ci --no-audit --no-fund && break; \
+    if [ "${i}" -eq 3 ]; then exit 1; fi; \
+    echo "npm ci failed, retry in 5s..."; \
+    sleep 5; \
+  done
 
 COPY . .
 RUN npm run build
