@@ -28,6 +28,8 @@ RUN mkdir -p /lib/aarch64-linux-gnu /lib/x86_64-linux-gnu \
   && cp -n /qdrant-lib/aarch64-linux-gnu/liblzma.so* /lib/aarch64-linux-gnu/ 2>/dev/null || true \
   && cp -n /qdrant-lib/x86_64-linux-gnu/liblzma.so* /lib/x86_64-linux-gnu/ 2>/dev/null || true \
   && rm -rf /qdrant-lib
+# Qdrant 1.18+ 启动时需系统 CA 证书（telemetry / inference HTTP 客户端），node:slim 默认没有
+COPY --from=qdrant /etc/ssl/certs /etc/ssl/certs
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server

@@ -216,6 +216,7 @@ docker logs qdrant-ui --tail 80
 |-----------|------|------|
 | `exec format error` / `无法运行` | 镜像 CPU 架构与机器不匹配（如在 Mac ARM 导出镜像，在 x86 Linux 上运行） | **在新机器上** `git pull` 后执行 `docker compose build --no-cache && docker compose up -d`，不要直接 `docker load` 跨架构镜像 |
 | `libunwind` / `cannot open shared object` | 旧版镜像缺少 Qdrant 运行时库 | `git pull` 拉最新代码后重新构建 |
+| `No CA certificates were loaded` | 镜像缺少系统 CA 证书（Qdrant 1.18+） | `git pull` 后 `docker compose build --no-cache` 重建 |
 | `Qdrant 进程异常退出` | 数据卷损坏或权限问题 | `docker compose down` 后加 `-v` 清空卷重试（会删向量数据） |
 | `port is already allocated` | 8787 被占用 | 改端口映射或释放占用进程 |
 
