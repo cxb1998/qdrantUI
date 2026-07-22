@@ -124,7 +124,34 @@ lsof -i :8787
 
 然后重新 `docker compose up -d`。若 8787 也被占用，可在 `docker-compose.yml` 改为 `"8788:8787"`，浏览器访问 http://localhost:8788。
 
-#### Docker 构建失败（拉取镜像 EOF / timeout）
+#### 构建时 `deb.debian.org` / DNS 解析失败
+
+报错类似 `Temporary failure resolving 'deb.debian.org'`、`ca-certificates has no installation candidate`，是 **Docker 构建容器内 DNS 不通**（Ubuntu 服务器上较常见）。
+
+请先 **拉取最新代码**（新版 Dockerfile 已去掉 `apt-get`，改为从 `qdrant/qdrant` 镜像复制二进制）：
+
+```bash
+git pull
+docker compose build --no-cache
+docker compose up -d
+```
+
+若仍失败，在宿主机配置 Docker DNS（`/etc/docker/daemon.json`）后 `systemctl restart docker`：
+
+```json
+{
+  "dns": ["114.114.114.114", "8.8.8.8"]
+}
+```
+
+先单独测试能否拉取镜像：
+
+```bash
+docker pull qdrant/qdrant:v1.13.5
+docker pull docker.1ms.run/library/node:22-bookworm-slim
+```
+
+#### Docker 构建失败（拉取镜像 EOF / timeout / 401）
 
 报错类似 `auth.docker.io ... i/o timeout` 或 `failed to resolve source metadata for docker.io/...`，是 **访问 Docker Hub 网络不通**（国内较常见）。
 
@@ -139,7 +166,9 @@ docker compose up -d
 **先单独测试能否拉到基础镜像：**
 
 ```bash
+docker pull qdrant/qdrant:v1.13.5
 docker pull docker.m.daocloud.io/library/node:22-bookworm-slim
+# 或 NODE_IMAGE=docker.1ms.run/library/node:22-bookworm-slim
 ```
 
 若上面成功，再执行 `docker compose up -d --build`。
@@ -169,7 +198,7 @@ Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
 }
 ```
 
-**说明**：Dockerfile 从 GitHub 下载 Qdrant 二进制，不依赖 `qdrant/qdrant` 镜像；构建阶段 `npm` 默认走 `npmmirror.com`。
+**说明**：Qdrant 从 `qdrant/qdrant` 镜像复制，构建阶段不再 `apt-get`；`npm` 默认走 `npmmirror.com`。
 
 #### 分发给其他项目 / 机器使用
 

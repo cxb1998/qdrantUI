@@ -6,6 +6,10 @@ USERS_FILE="${USERS_FILE:-/data/config/users.json}"
 
 mkdir -p "$QDRANT_DATA" "$(dirname "$USERS_FILE")"
 
+qdrant_ready() {
+  node -e "fetch('http://127.0.0.1:6333/readyz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+}
+
 echo "启动 Qdrant（存储: $QDRANT_DATA）..."
 export QDRANT__STORAGE__STORAGE_PATH="$QDRANT_DATA"
 export QDRANT__SERVICE__HTTP_PORT=6333
@@ -23,7 +27,7 @@ trap cleanup EXIT TERM INT
 
 echo "等待 Qdrant 就绪..."
 for _ in $(seq 1 60); do
-  if wget -q -O /dev/null http://127.0.0.1:6333/readyz 2>/dev/null; then
+  if qdrant_ready 2>/dev/null; then
     echo "Qdrant 已就绪"
     break
   fi
@@ -34,7 +38,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
-if ! wget -q -O /dev/null http://127.0.0.1:6333/readyz 2>/dev/null; then
+if ! qdrant_ready 2>/dev/null; then
   echo "Qdrant 启动超时"
   exit 1
 fi
