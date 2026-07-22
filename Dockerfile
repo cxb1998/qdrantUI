@@ -1,5 +1,5 @@
 ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-bookworm-slim
-ARG QDRANT_IMAGE=qdrant/qdrant:v1.13.5
+ARG QDRANT_IMAGE=qdrant/qdrant:v1.18.3
 
 FROM ${QDRANT_IMAGE} AS qdrant
 
@@ -20,6 +20,14 @@ WORKDIR /app
 
 # 从官方 Qdrant 镜像复制二进制，避免构建时 apt-get / wget（内网 DNS 不通时常见失败）
 COPY --from=qdrant /qdrant /app/qdrant
+# node:slim 不含 libunwind 等 Qdrant 运行时依赖，从官方镜像一并复制（无需 apt-get）
+COPY --from=qdrant /lib/ /qdrant-lib/
+RUN mkdir -p /lib/aarch64-linux-gnu /lib/x86_64-linux-gnu \
+  && cp -n /qdrant-lib/aarch64-linux-gnu/libunwind*.so* /lib/aarch64-linux-gnu/ 2>/dev/null || true \
+  && cp -n /qdrant-lib/x86_64-linux-gnu/libunwind*.so* /lib/x86_64-linux-gnu/ 2>/dev/null || true \
+  && cp -n /qdrant-lib/aarch64-linux-gnu/liblzma.so* /lib/aarch64-linux-gnu/ 2>/dev/null || true \
+  && cp -n /qdrant-lib/x86_64-linux-gnu/liblzma.so* /lib/x86_64-linux-gnu/ 2>/dev/null || true \
+  && rm -rf /qdrant-lib
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server

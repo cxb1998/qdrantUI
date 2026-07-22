@@ -10,11 +10,19 @@ qdrant_ready() {
   node -e "fetch('http://127.0.0.1:6333/readyz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 }
 
+if ! /app/qdrant/qdrant --version >/dev/null 2>&1; then
+  echo "Qdrant 二进制无法运行（常见原因：CPU 架构不匹配，或缺少 libunwind）"
+  echo "请在本机执行 docker compose build --no-cache 重新构建，勿直接导入其他架构的镜像"
+  /app/qdrant/qdrant --version 2>&1 || true
+  exit 1
+fi
+
 echo "启动 Qdrant（存储: $QDRANT_DATA）..."
 export QDRANT__STORAGE__STORAGE_PATH="$QDRANT_DATA"
 export QDRANT__SERVICE__HTTP_PORT=6333
 export QDRANT__SERVICE__GRPC_PORT=6334
-/app/qdrant/qdrant &
+QDRANT_LOG=/tmp/qdrant.log
+/app/qdrant/qdrant >"$QDRANT_LOG" 2>&1 &
 QDRANT_PID=$!
 
 cleanup() {
@@ -32,7 +40,8 @@ for _ in $(seq 1 60); do
     break
   fi
   if ! kill -0 "$QDRANT_PID" 2>/dev/null; then
-    echo "Qdrant 进程异常退出"
+    echo "Qdrant 进程异常退出，最近日志："
+    tail -n 40 "$QDRANT_LOG" 2>/dev/null || true
     exit 1
   fi
   sleep 1

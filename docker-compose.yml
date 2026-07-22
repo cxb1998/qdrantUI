@@ -5,7 +5,7 @@ services:
       args:
         # 默认走国内镜像站，避免 docker.io 超时；可覆盖为 node:22-bookworm-slim
         NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-bookworm-slim}
-        QDRANT_IMAGE: ${QDRANT_IMAGE:-qdrant/qdrant:v1.13.5}
+        QDRANT_IMAGE: ${QDRANT_IMAGE:-qdrant/qdrant:v1.18.3}
     container_name: qdrant-ui
     ports:
       - "8787:8787"   # 控制台（浏览器访问）；Qdrant 仅在容器内 :6333，不占用宿主机端口

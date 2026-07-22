@@ -147,7 +147,7 @@ docker compose up -d
 先单独测试能否拉取镜像：
 
 ```bash
-docker pull qdrant/qdrant:v1.13.5
+docker pull qdrant/qdrant:v1.18.3
 docker pull docker.1ms.run/library/node:22-bookworm-slim
 ```
 
@@ -166,7 +166,7 @@ docker compose up -d
 **先单独测试能否拉到基础镜像：**
 
 ```bash
-docker pull qdrant/qdrant:v1.13.5
+docker pull qdrant/qdrant:v1.18.3
 docker pull docker.m.daocloud.io/library/node:22-bookworm-slim
 # 或 NODE_IMAGE=docker.1ms.run/library/node:22-bookworm-slim
 ```
@@ -198,7 +198,36 @@ Settings → Docker Engine → 加入 `registry-mirrors` 后 Apply：
 }
 ```
 
-**说明**：Qdrant 从 `qdrant/qdrant` 镜像复制，构建阶段不再 `apt-get`；`npm` 默认走 `npmmirror.com`。
+**说明**：Qdrant 从 `qdrant/qdrant` 镜像复制，构建阶段不再 `apt-get`；`npm` 默认走 `npmmirror.com`。默认固定为 `v1.18.3`（可复现构建），**不建议**用 `latest` 标签；如需升级可在 `.env` 设置 `QDRANT_IMAGE=qdrant/qdrant:v1.18.3` 后重新 `docker compose build --no-cache`。
+
+#### 容器状态一直 Restarting
+
+先查看日志定位原因：
+
+```bash
+docker compose logs --tail 80
+# 或
+docker logs qdrant-ui --tail 80
+```
+
+常见原因与处理：
+
+| 日志关键词 | 原因 | 处理 |
+|-----------|------|------|
+| `exec format error` / `无法运行` | 镜像 CPU 架构与机器不匹配（如在 Mac ARM 导出镜像，在 x86 Linux 上运行） | **在新机器上** `git pull` 后执行 `docker compose build --no-cache && docker compose up -d`，不要直接 `docker load` 跨架构镜像 |
+| `libunwind` / `cannot open shared object` | 旧版镜像缺少 Qdrant 运行时库 | `git pull` 拉最新代码后重新构建 |
+| `Qdrant 进程异常退出` | 数据卷损坏或权限问题 | `docker compose down` 后加 `-v` 清空卷重试（会删向量数据） |
+| `port is already allocated` | 8787 被占用 | 改端口映射或释放占用进程 |
+
+推荐在新电脑上**始终本地构建**，不要复用其他架构机器导出的 `.tar` 镜像：
+
+```bash
+git pull origin main
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+docker compose logs -f    # 确认出现「Qdrant 已就绪」「BFF 运行于」
+```
 
 #### 分发给其他项目 / 机器使用
 
